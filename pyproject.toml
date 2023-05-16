@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "factor-loader"
+version = "0.1.0"
+description = ""
+authors = ["TomasJuhos <tomas.juhos@2iqresearch.com>"]
+readme = "README.md"
+packages = [{include = "factor_loader"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+psycopg2-binary = "^2.9.6"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
