@@ -2,8 +2,9 @@
 
 from datetime import datetime
 from decimal import Decimal
+import json
 import logging
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from factor_loader.model.base import Modeling
 
@@ -23,6 +24,8 @@ class FactorReturns(Modeling):
     short_rtn: Optional[Decimal] = None
     rtn: Optional[Decimal] = None
     consistent: Optional[bool] = None
+
+    gvkeys: Optional[Dict]
 
     @classmethod
     def build_record(cls, record: Tuple) -> "FactorReturns":
@@ -45,6 +48,7 @@ class FactorReturns(Modeling):
         res.short_rtn = record[6]
         res.rtn = record[7]
         res.consistent = record[8]
+        res.gvkeys = json.dumps(record[9])
 
         return res
 
@@ -64,4 +68,5 @@ class FactorReturns(Modeling):
             self.short_rtn,
             self.rtn,
             self.consistent,
+            self.gvkeys
         )

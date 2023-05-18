@@ -14,7 +14,8 @@ class Queries:
         "       long_rtn, "
         "       short_rtn, "
         "       rtn, "
-        "       consistent "
+        "       consistent, "
+        "       gvkeys "
         ") VALUES %s "
         "ON CONFLICT (datadate, factor, timeframe, mkt_cap_class, top) DO "
         "UPDATE SET "
@@ -26,5 +27,6 @@ class Queries:
         "       long_rtn=EXCLUDED.long_rtn, "
         "       short_rtn=EXCLUDED.short_rtn, "
         "       rtn=EXCLUDED.rtn, "
-        "       consistent=EXCLUDED.consistent; "
+        "       consistent=EXCLUDED.consistent, "
+        "       gvkeys=EXCLUDED.gvkeys; "
     )

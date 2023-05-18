@@ -32,9 +32,10 @@ class MetricsData:
     market_cap: Optional[Decimal] = None
     shares_out: Optional[Decimal] = None
     rtn: Optional[Decimal] = None
+    winsorized_5_rtn: Optional[Decimal] = None
 
     @classmethod
-    def build_record(cls, record) -> "Metrics":
+    def build_record(cls, record) -> "MetricsData":
         res = cls()
 
         res.datadate = record[0]
@@ -55,5 +56,6 @@ class MetricsData:
         res.market_cap = record[15]
         res.shares_out = record[16]
         res.rtn = record[17]
+        res.winsorized_5_rtn = record[18]
 
         return res

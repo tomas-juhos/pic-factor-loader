@@ -11,6 +11,7 @@ CREATE TABLE factor_returns
     rtn                 DECIMAL(25,15),
 
     consistent          BOOLEAN,
+    gvkeys              JSONB,
 
     PRIMARY KEY (datadate, factor, timeframe, mkt_cap_class, top)
 );

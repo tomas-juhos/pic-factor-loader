@@ -30,6 +30,7 @@ class BaseData:
     market_cap: Optional[Decimal] = None
     shares_out: Optional[Decimal] = None
     rtn: Optional[Decimal] = None
+    winsorized_5_rtn: Optional[Decimal] = None
 
     @classmethod
     def build_record(cls, record):
@@ -51,5 +52,6 @@ class BaseData:
         res.market_cap = record[13]
         res.shares_out = record[14]
         res.rtn = record[15]
+        res.winsorized_5_rtn = record[16]
 
         return res

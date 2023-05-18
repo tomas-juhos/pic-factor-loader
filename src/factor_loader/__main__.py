@@ -204,7 +204,7 @@ class Loader:
     def get_top_flop(self, sorted_factor, rtn_records):
         # LOOP THROUGH THE SELECTION AMOUNT DICT.
         # INPUT MKT CP DICT AND NEXT RECORDS
-        # RETURN NESTED DICT: MKT CAP -> SELECTION AMOUNT -> TOP/FLOP -> (RECORDS, CONSISTENT)
+        # RETURN NESTED DICT: MKT CAP -> SELECTION AMOUNT -> TOP/FLOP/CONSISTENT/GVKEYS
         res = {}
         rtn_keys = [r.gvkey for r in rtn_records]
         for mkt_cap_class, factor_records in sorted_factor.items():
@@ -214,9 +214,13 @@ class Loader:
 
                 top_keys = [r.gvkey for r in records_with_returns[-selection_amount:]]
                 flop_keys = [r.gvkey for r in records_with_returns[:selection_amount]]
+                gvkeys = {
+                    "LONG": flop_keys,
+                    "SHORT": top_keys
+                }
 
-                top_returns = [r.rtn for r in rtn_records if r.gvkey in top_keys]
-                flop_returns = [r.rtn for r in rtn_records if r.gvkey in flop_keys]
+                top_returns = [r.winsorized_5_rtn for r in rtn_records if r.gvkey in top_keys]
+                flop_returns = [r.winsorized_5_rtn for r in rtn_records if r.gvkey in flop_keys]
 
                 if len(records_with_returns) >= selection_amount * 2:
                     consistent = True
@@ -227,11 +231,10 @@ class Loader:
                     res[mkt_cap_class] = {}
 
                 res[mkt_cap_class][selection_amount] = {}
-                res[mkt_cap_class][selection_amount]["top"] = (top_returns, consistent)
-                res[mkt_cap_class][selection_amount]["flop"] = (
-                    flop_returns,
-                    consistent,
-                )
+                res[mkt_cap_class][selection_amount]["top"] = top_returns
+                res[mkt_cap_class][selection_amount]["flop"] = flop_returns
+                res[mkt_cap_class][selection_amount]["consistent"] = consistent
+                res[mkt_cap_class][selection_amount]["gvkeys"] = gvkeys
 
         return res
 
@@ -240,13 +243,11 @@ class Loader:
         """Computes returns using dict output from get_top_flop."""
         res = []
         for mkt_cap_class, selection_amount_dict in returns_dict.items():
-            for selection_amount, top_flop in selection_amount_dict.items():
-                flop_returns = top_flop["flop"][0]
-                top_returns = top_flop["top"][0]
-                if top_flop["top"][1] and top_flop["flop"][1]:
-                    consistent = True
-                else:
-                    consistent = False
+            for selection_amount, portfolio in selection_amount_dict.items():
+                flop_returns = portfolio["flop"]
+                top_returns = portfolio["top"]
+                consistent = portfolio["consistent"]
+                gvkeys = portfolio["gvkeys"]
 
                 long_returns = (
                     sum(flop_returns) / len(flop_returns) if flop_returns else None
@@ -272,6 +273,7 @@ class Loader:
                     short_returns,
                     returns,
                     consistent,
+                    gvkeys,
                 )
 
                 res.append(model.FactorReturns.build_record(record).as_tuple())
