@@ -40,8 +40,8 @@ class Loader:
     ]
 
     _mkt_cap_ranges = {
-        "small": (0, 500),
-        "mid": (500, 10_000),
+        "small": (100, 1000),
+        "mid": (1000, 10_000),
         "large": (10_000, 999_999_999),
     }
 
@@ -102,7 +102,12 @@ class Loader:
                     records = self.run_config(history, config)
 
                     config_record = [
-                        (config.factor.upper(), config.timeframe.upper(), max_date, config.source_table.upper())
+                        (
+                            config.factor.upper(),
+                            config.timeframe.upper(),
+                            max_date,
+                            config.source_table.upper(),
+                        )
                     ]
 
                     self.target.execute(queries.ConfigQueries.UPSERT, config_record)
@@ -116,7 +121,7 @@ class Loader:
             if max_date:
                 history = {max_date: history[max_date]}
 
-            logger.info(f"Persisted {date_range} for every config.")
+            logger.info(f"Persisted records for {date_range[1].year} for every config.")
             i += 1
 
         logger.info("Process finished.")
@@ -134,16 +139,12 @@ class Loader:
         )
         if raw_records:
             logger.debug("Curating records...")
-            curated_records = None
+            curated_records: Union[List[model.BaseData], List[model.MetricsData]] = []
             if config.source_table == "base":
-                curated_records = [
-                    model.BaseData.build_record(r)
-                    for r in raw_records
-                ]
+                curated_records = [model.BaseData.build_record(r) for r in raw_records]
             if config.source_table == "metrics":
                 curated_records = [
-                    model.MetricsData.build_record(r)
-                    for r in raw_records
+                    model.MetricsData.build_record(r) for r in raw_records
                 ]
 
             if curated_records:
@@ -166,16 +167,17 @@ class Loader:
         dates.sort()
 
         res = []
-        for i in range(0, len(dates) - 1):
-            curr_records = history[dates[i]]
-            next_date = dates[i + 1]
-            next_records = history[next_date]
+        for d in dates:
+            records = history[d]
             logger.debug("Sorting factor...")
-            sorted_factor = self.sort_factor(config.factor, curr_records)
+            sorted_factor = self.sort_factor(config.factor, records)
             logger.debug("Getting returns...")
-            returns_dict = self.get_top_flop(sorted_factor, next_records)
+            if config.factor == "benchmark":
+                returns_dict = self.get_benchmark_rtn(sorted_factor)
+            else:
+                returns_dict = self.get_top_flop(sorted_factor)
             logger.debug("Computing return...")
-            records = self.compute_returns(next_date, config, returns_dict)
+            records = self.compute_returns(d, config, returns_dict)
             res.extend(records)
 
         return res
@@ -188,41 +190,40 @@ class Loader:
         for mkt_cap_class, mkt_cap_range in self._mkt_cap_ranges.items():
             min_mkt_cap = mkt_cap_range[0]
             max_mkt_cap = mkt_cap_range[1]
-
-            filtered_records = [
-                r
-                for r in records
-                if getattr(r, factor) is not None
-                and min_mkt_cap < getattr(r, "market_cap") <= max_mkt_cap
-            ]
-            filtered_records.sort(key=lambda x: getattr(x, factor))
+            if factor != "benchmark":
+                filtered_records = [
+                    r
+                    for r in records
+                    if getattr(r, factor) is not None
+                    and min_mkt_cap < getattr(r, "market_cap") <= max_mkt_cap
+                ]
+                filtered_records.sort(key=lambda x: getattr(x, factor))
+            else:
+                filtered_records = [
+                    r
+                    for r in records
+                    if min_mkt_cap < getattr(r, "market_cap") <= max_mkt_cap
+                ]
 
             res[mkt_cap_class] = filtered_records
 
         return res
 
-    def get_top_flop(self, sorted_factor, rtn_records):
+    def get_top_flop(self, sorted_factor):
         # LOOP THROUGH THE SELECTION AMOUNT DICT.
         # INPUT MKT CP DICT AND NEXT RECORDS
         # RETURN NESTED DICT: MKT CAP -> SELECTION AMOUNT -> TOP/FLOP/CONSISTENT/GVKEYS
         res = {}
-        rtn_keys = [r.gvkey for r in rtn_records]
-        for mkt_cap_class, factor_records in sorted_factor.items():
+        for mkt_cap_class, records in sorted_factor.items():
             for selection_amount in self._selection_amounts:
+                top_keys = [r.gvkey for r in records[-selection_amount:]]
+                flop_keys = [r.gvkey for r in records[:selection_amount]]
+                gvkeys = {"LONG": flop_keys, "SHORT": top_keys}
 
-                records_with_returns = [r for r in factor_records if r.gvkey in rtn_keys]
+                top_returns = [r.winsorized_5_rtn for r in records[-selection_amount:]]
+                flop_returns = [r.winsorized_5_rtn for r in records[:selection_amount]]
 
-                top_keys = [r.gvkey for r in records_with_returns[-selection_amount:]]
-                flop_keys = [r.gvkey for r in records_with_returns[:selection_amount]]
-                gvkeys = {
-                    "LONG": flop_keys,
-                    "SHORT": top_keys
-                }
-
-                top_returns = [r.winsorized_5_rtn for r in rtn_records if r.gvkey in top_keys]
-                flop_returns = [r.winsorized_5_rtn for r in rtn_records if r.gvkey in flop_keys]
-
-                if len(records_with_returns) >= selection_amount * 2:
+                if len(records) >= selection_amount * 2:
                     consistent = True
                 else:
                     consistent = False
@@ -235,6 +236,29 @@ class Loader:
                 res[mkt_cap_class][selection_amount]["flop"] = flop_returns
                 res[mkt_cap_class][selection_amount]["consistent"] = consistent
                 res[mkt_cap_class][selection_amount]["gvkeys"] = gvkeys
+
+        return res
+
+    @staticmethod
+    def get_benchmark_rtn(sorted_factor):
+        # LOOP THROUGH THE SELECTION AMOUNT DICT.
+        # INPUT MKT CP DICT AND NEXT RECORDS
+        # RETURN NESTED DICT: MKT CAP -> SELECTION AMOUNT -> TOP/FLOP/CONSISTENT/GVKEYS
+        res = {}
+        for mkt_cap_class, records in sorted_factor.items():
+            keys = [r.gvkey for r in records]
+            gvkeys = {"LONG": keys, "SHORT": keys}
+
+            returns = [r.winsorized_5_rtn for r in records]
+
+            if mkt_cap_class not in res.keys():
+                res[mkt_cap_class] = {}
+
+            res[mkt_cap_class][0] = {}
+            res[mkt_cap_class][0]["top"] = returns
+            res[mkt_cap_class][0]["flop"] = returns
+            res[mkt_cap_class][0]["consistent"] = True
+            res[mkt_cap_class][0]["gvkeys"] = gvkeys
 
         return res
 

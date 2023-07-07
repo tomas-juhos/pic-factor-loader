@@ -31,6 +31,7 @@ class MetricsData:
 
     market_cap: Optional[Decimal] = None
     shares_out: Optional[Decimal] = None
+    volume: Optional[Decimal] = None
     rtn: Optional[Decimal] = None
     winsorized_5_rtn: Optional[Decimal] = None
 
@@ -55,7 +56,8 @@ class MetricsData:
         res.short_ratio = record[14]
         res.market_cap = record[15]
         res.shares_out = record[16]
-        res.rtn = record[17]
-        res.winsorized_5_rtn = record[18]
+        res.volume = record[17]
+        res.rtn = record[18]
+        res.winsorized_5_rtn = record[19]
 
         return res

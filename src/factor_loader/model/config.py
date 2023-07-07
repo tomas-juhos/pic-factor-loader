@@ -29,6 +29,4 @@ class Config:
         return res
 
     def __repr__(self):
-        return (
-            f"({self.factor.upper()}, {self.timeframe.upper()})"
-        )
+        return f"({self.factor.upper()}, {self.timeframe.upper()})"

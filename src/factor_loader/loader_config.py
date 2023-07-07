@@ -1,12 +1,14 @@
 import os
 
 from factor_loader.persistence.target import Target
+import factor_loader.queries as queries
 
 
 class LoaderConfig:
     """Sets loader running configurations."""
 
     _factors = [
+        "BENCHMARK",
         "BAR",
         "BAR_DELTA",
         "UTILIZATION_PCT",
@@ -20,6 +22,7 @@ class LoaderConfig:
     ]
 
     _source_table = {
+        "BENCHMARK": "BASE",
         "BAR": "BASE",
         "BAR_DELTA": "METRICS",
         "UTILIZATION_PCT": "BASE",
@@ -38,21 +41,6 @@ class LoaderConfig:
         "DAILY",
     ]
 
-    _INSERT_CONFIGS = (
-        "INSERT INTO factor_loader_config ("
-        "       factor, "
-        "       timeframe, "
-        "       last_date_persisted, "
-        "       source_table "
-        ") VALUES %s "
-        "ON CONFLICT (factor, timeframe) DO "
-        "UPDATE SET "
-        "       factor=EXCLUDED.factor, "
-        "       timeframe=EXCLUDED.timeframe, "
-        "       last_date_persisted=EXCLUDED.last_date_persisted, "
-        "       source_table=EXCLUDED.source_table; "
-    )
-
     def set_configs(self) -> None:
         target = Target(os.environ.get("TARGET"))
         configs = []
@@ -67,7 +55,7 @@ class LoaderConfig:
                     )
                 )
 
-        target.execute(self._INSERT_CONFIGS, configs)
+        target.execute(queries.ConfigQueries.SET_CONFIGS, configs)
         target.commit_transaction()
 
 

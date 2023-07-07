@@ -41,7 +41,7 @@ class Target:
     def fetch_last_date_persisted(self, timeframe: str):
         """Fetches minimum of the last persisted dates."""
         cursor = self.cursor
-        query = "SELECT MIN(last_date_persisted) FROM factor_loader_config flc WHERE timeframe = %s;"
+        query = "SELECT MIN(last_date_persisted) FROM factor_loader_config WHERE timeframe = %s;"
         cursor.execute(query, (timeframe.upper(),))
         last_date = cursor.fetchone()
 
@@ -56,4 +56,3 @@ class Target:
         """
         cursor = self.cursor
         execute_values(cur=cursor, sql=query, argslist=records)
-

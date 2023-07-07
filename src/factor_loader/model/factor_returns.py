@@ -68,5 +68,5 @@ class FactorReturns(Modeling):
             self.short_rtn,
             self.rtn,
             self.consistent,
-            self.gvkeys
+            self.gvkeys,
         )
